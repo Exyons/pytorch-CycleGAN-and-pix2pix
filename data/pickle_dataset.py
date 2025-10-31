@@ -63,14 +63,14 @@ class PickleDataset(BaseDataset):
         """
         index_A = index % self.A_size
         A_image = self.A_images[index_A]
-        A_date = self.A_dates[index_A]
+        # A_date = self.A_dates[index_A]
 
         if self.opt.serial_batches:
             index_B = index % self.B_size
         else:
             index_B = random.randint(0, self.B_size - 1)
         B_image = self.B_images[index_B]
-        B_date = self.B_dates[index_B]
+        # B_date = self.B_dates[index_B]
 
         A_img = Image.fromarray(A_image).convert('L')
         B_img = Image.fromarray(B_image).convert('L')
@@ -78,10 +78,11 @@ class PickleDataset(BaseDataset):
         A = self.transform(A_img)
         B = self.transform(B_img)
 
-        A_date_ts = torch.tensor(A_date.timestamp())
-        B_date_ts = torch.tensor(B_date.timestamp())
-
-        return {'A': A, 'B': B, 'A_paths': str(index_A), 'B_paths': str(index_B), 'A_dates': A_date_ts, 'B_dates': B_date_ts}
+        # A_date_ts = torch.tensor(A_date.timestamp())
+        # B_date_ts = torch.tensor(B_date.timestamp())
+        
+        return {'A': A, 'B': B, 'A_paths': str(index_A), 'B_paths': str(index_B)}
+        # return {'A': A, 'B': B, 'A_paths': str(index_A), 'B_paths': str(index_B), 'A_dates': A_date_ts, 'B_dates': B_date_ts}
 
     def __len__(self):
         """Return the total number of images in the dataset.
