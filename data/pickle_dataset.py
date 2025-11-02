@@ -6,6 +6,7 @@ import random
 import torch
 import torchvision.transforms as transforms
 
+
 class PickleDataset(BaseDataset):
     """
     This dataset class can load paired data from pickle files.
@@ -23,8 +24,18 @@ class PickleDataset(BaseDataset):
         Returns:
             the modified parser.
         """
-        parser.add_argument('--pickle_file_A', type=str, default='path/to/pickle_A.pkl', help='path to the pickle file for domain A')
-        parser.add_argument('--pickle_file_B', type=str, default='path/to/pickle_B.pkl', help='path to the pickle file for domain B')
+        parser.add_argument(
+            "--pickle_file_A",
+            type=str,
+            default="path/to/pickle_A.pkl",
+            help="path to the pickle file for domain A",
+        )
+        parser.add_argument(
+            "--pickle_file_B",
+            type=str,
+            default="path/to/pickle_B.pkl",
+            help="path to the pickle file for domain B",
+        )
         return parser
 
     def __init__(self, opt):
@@ -36,18 +47,27 @@ class PickleDataset(BaseDataset):
         BaseDataset.__init__(self, opt)
         self.dir_A = opt.pickle_file_A
         self.dir_B = opt.pickle_file_B
-        with open(self.dir_A, 'rb') as f:
+        with open(self.dir_A, "rb") as f:
             data_A = pickle.load(f)
             self.A_dates = list(data_A.keys())
             self.A_images = list(data_A.values())
-        with open(self.dir_B, 'rb') as f:
+        with open(self.dir_B, "rb") as f:
             data_B = pickle.load(f)
             self.B_dates = list(data_B.keys())
             self.B_images = list(data_B.values())
 
         self.A_size = len(self.A_images)
         self.B_size = len(self.B_images)
-        self.transform = get_transform_rainfall(self.opt, grayscale=(self.opt.input_nc == 1))
+        btoA = self.opt.direction == "BtoA"
+        input_nc = (
+            self.opt.output_nc if btoA else self.opt.input_nc
+        )  # get the number of channels of input image
+        output_nc = (
+            self.opt.input_nc if btoA else self.opt.output_nc
+        )  # get the number of channels of output image
+        # self.transform = get_transform_rainfall(self.opt, grayscale=(self.opt.input_nc == 1))
+        self.transform_A = get_transform_rainfall(self.opt, grayscale=(input_nc == 1))
+        self.transform_B = get_transform_rainfall(self.opt, grayscale=(output_nc == 1))
 
     def __getitem__(self, index):
         """Return a data point and its metadata information.
@@ -72,16 +92,16 @@ class PickleDataset(BaseDataset):
         B_image = self.B_images[index_B]
         # B_date = self.B_dates[index_B]
 
-        A_img = Image.fromarray(A_image).convert('L')
-        B_img = Image.fromarray(B_image).convert('L')
+        A_img = Image.fromarray(A_image[2])
+        B_img = Image.fromarray(B_image)
 
-        A = self.transform(A_img)
-        B = self.transform(B_img)
+        A = self.transform_A(A_img)
+        B = self.transform_B(B_img)
 
         # A_date_ts = torch.tensor(A_date.timestamp())
         # B_date_ts = torch.tensor(B_date.timestamp())
-        
-        return {'A': A, 'B': B, 'A_paths': str(index_A), 'B_paths': str(index_B)}
+
+        return {"A": A, "B": B, "A_paths": str(index_A), "B_paths": str(index_B)}
         # return {'A': A, 'B': B, 'A_paths': str(index_A), 'B_paths': str(index_B), 'A_dates': A_date_ts, 'B_dates': B_date_ts}
 
     def __len__(self):
@@ -92,15 +112,21 @@ class PickleDataset(BaseDataset):
         """
         return max(self.A_size, self.B_size)
 
+class NumpyToTensor:
+    def __call__(self, arr):
+        return torch.from_numpy(arr).float()
+
+# * No need BaseDataset already implements it
 def get_transform_rainfall(opt, grayscale=False, convert=True):
     transform_list = []
     if grayscale:
         transform_list.append(transforms.Grayscale(1))
 
-    transform_list.append(transforms.Resize([opt.crop_size, opt.crop_size], transforms.InterpolationMode.NEAREST))
+    # transform_list.append(transforms.Resize([opt.crop_size, opt.crop_size], transforms.InterpolationMode.NEAREST))
 
     if convert:
         transform_list += [transforms.ToTensor()]
+        # transform_list += [NumpyToTensor()]
         if grayscale:
             transform_list += [transforms.Normalize((0.5,), (0.5,))]
         else:
